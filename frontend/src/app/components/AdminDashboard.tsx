@@ -1,43 +1,117 @@
 import { useNavigate } from "react-router";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { FileText, LogOut, Users, CheckCircle, XCircle, Clock, TrendingUp } from "lucide-react";
-
-const statsData = [
-  { month: "Jan", total: 45, approved: 32, rejected: 13 },
-  { month: "Feb", total: 52, approved: 38, rejected: 14 },
-  { month: "Mar", total: 68, approved: 51, rejected: 17 },
-  { month: "Apr", total: 41, approved: 29, rejected: 12 },
-];
-
-const pieData = [
-  { name: "Approved", value: 150, color: "#10b981" },
-  { name: "Rejected", value: 56, color: "#ef4444" },
-  { name: "Pending", value: 24, color: "#f59e0b" },
-];
-
-const mockUsers = [
-  { id: 1, name: "John Doe", email: "john@university.edu", role: "User", applications: 5 },
-  { id: 2, name: "Jane Smith", email: "jane@university.edu", role: "User", applications: 3 },
-  { id: 3, name: "Dr. Wilson", email: "wilson@university.edu", role: "Manager", applications: 0 },
-  { id: 4, name: "Mike Johnson", email: "mike@university.edu", role: "User", applications: 7 },
-];
+import {
+  Briefcase,
+  Users,
+  CheckCircle,
+  XCircle,
+  Clock,
+  LogOut,
+  Sparkles,
+  BarChart3,
+  Activity,
+  TrendingUp,
+  FileText,
+} from "lucide-react";
+import {
+  candidateApplications,
+  vacancies,
+} from "../data/mockRecruitmentData";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
+  const totalApplications = candidateApplications.length;
+  const approvedApplications = candidateApplications.filter(
+    (application) => application.status === "approved"
+  ).length;
+  const rejectedApplications = candidateApplications.filter(
+    (application) => application.status === "rejected"
+  ).length;
+  const pendingApplications = candidateApplications.filter(
+    (application) => application.status === "pending"
+  ).length;
+
+  const averageAiScore = Math.round(
+    candidateApplications.reduce(
+      (total, application) => total + application.aiScore,
+      0
+    ) / totalApplications
+  );
+
+  const vacancyStats = vacancies.map((vacancy) => {
+    const applicationsForVacancy = candidateApplications.filter(
+      (application) => application.vacancyId === vacancy.id
+    );
+
+    const averageScore =
+      applicationsForVacancy.length > 0
+        ? Math.round(
+            applicationsForVacancy.reduce(
+              (total, application) => total + application.aiScore,
+              0
+            ) / applicationsForVacancy.length
+          )
+        : 0;
+
+    return {
+      ...vacancy,
+      applicationsCount: applicationsForVacancy.length,
+      averageScore,
+    };
+  });
+
+  const recentActivities = [
+    {
+      id: 1,
+      text: "John Doe was approved for Software Engineer",
+      type: "approved",
+      time: "10 minutes ago",
+    },
+    {
+      id: 2,
+      text: "Sarah Williams was rejected for Software Engineer",
+      type: "rejected",
+      time: "25 minutes ago",
+    },
+    {
+      id: 3,
+      text: "Mike Johnson submitted a CV for Frontend Developer",
+      type: "pending",
+      time: "1 hour ago",
+    },
+  ];
+
+  const getStatusIcon = (type: string) => {
+    if (type === "approved") return <CheckCircle className="w-5 h-5" />;
+    if (type === "rejected") return <XCircle className="w-5 h-5" />;
+    return <Clock className="w-5 h-5" />;
+  };
+
+  const getStatusColor = (type: string) => {
+    if (type === "approved") return "bg-green-50 text-green-700";
+    if (type === "rejected") return "bg-red-50 text-red-700";
+    return "bg-yellow-50 text-yellow-700";
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-yellow-600";
+    return "text-red-600";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg">Smart Application System</h1>
-              <p className="text-sm text-gray-600">Admin Portal</p>
-            </div>
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Admin Analytics Dashboard
+            </h1>
+            <p className="text-sm text-gray-500">
+              Recruitment workflow overview and AI-assisted application analytics
+            </p>
           </div>
+
           <button
             onClick={() => navigate("/")}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -46,140 +120,262 @@ export default function AdminDashboard() {
             Logout
           </button>
         </div>
-      </nav>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl mb-2">System Analytics</h2>
-          <p className="text-gray-600">Monitor system performance and user activity</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-blue-600" />
-              </div>
-              <TrendingUp className="w-5 h-5 text-green-600" />
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        <section className="mb-8">
+          <div className="bg-gradient-to-r from-gray-900 to-blue-900 rounded-2xl p-8 text-white">
+            <div className="flex items-center gap-3 mb-3">
+              <Sparkles className="w-7 h-7 text-blue-200" />
+              <h2 className="text-3xl font-bold">
+                AI Recruitment System Overview
+              </h2>
             </div>
-            <div className="text-3xl mb-1">230</div>
-            <div className="text-sm text-gray-600">Total Applications</div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
+            <p className="text-blue-100 max-w-3xl">
+              Monitor vacancies, candidate applications, AI fit scores, and
+              approval decisions from one centralized admin dashboard.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid md:grid-cols-2 xl:grid-cols-5 gap-5 mb-8">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
+              <Briefcase className="w-6 h-6 text-blue-600" />
             </div>
-            <div className="text-3xl mb-1">150</div>
-            <div className="text-sm text-gray-600">Approved</div>
+            <p className="text-sm text-gray-500">Active Vacancies</p>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {vacancies.length}
+            </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <XCircle className="w-6 h-6 text-red-600" />
-              </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center mb-4">
+              <Users className="w-6 h-6 text-indigo-600" />
             </div>
-            <div className="text-3xl mb-1">56</div>
-            <div className="text-sm text-gray-600">Rejected</div>
+            <p className="text-sm text-gray-500">Total Applications</p>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {totalApplications}
+            </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="w-11 h-11 bg-yellow-50 rounded-xl flex items-center justify-center mb-4">
+              <Clock className="w-6 h-6 text-yellow-600" />
             </div>
-            <div className="text-3xl mb-1">24</div>
-            <div className="text-sm text-gray-600">Pending Review</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg mb-4">Monthly Application Trends</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={statsData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="approved" fill="#10b981" />
-                <Bar dataKey="rejected" fill="#ef4444" />
-              </BarChart>
-            </ResponsiveContainer>
+            <p className="text-sm text-gray-500">Pending</p>
+            <p className="text-3xl font-bold text-yellow-600 mt-2">
+              {pendingApplications}
+            </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg mb-4">Application Status Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="w-11 h-11 bg-green-50 rounded-xl flex items-center justify-center mb-4">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="text-sm text-gray-500">Approved</p>
+            <p className="text-3xl font-bold text-green-600 mt-2">
+              {approvedApplications}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="w-11 h-11 bg-red-50 rounded-xl flex items-center justify-center mb-4">
+              <XCircle className="w-6 h-6 text-red-600" />
+            </div>
+            <p className="text-sm text-gray-500">Rejected</p>
+            <p className="text-3xl font-bold text-red-600 mt-2">
+              {rejectedApplications}
+            </p>
+          </div>
+        </section>
+
+        <section className="grid lg:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
+              <h3 className="text-lg font-bold text-gray-900">
+                Average AI Score
+              </h3>
+            </div>
+
+            <p className={`text-5xl font-bold ${getScoreColor(averageAiScore)}`}>
+              {averageAiScore}%
+            </p>
+
+            <p className="text-sm text-gray-600 mt-3">
+              Average candidate fit score across all applications.
+            </p>
+
+            <div className="mt-5 bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-blue-600 h-full rounded-full"
+                style={{ width: `${averageAiScore}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <TrendingUp className="w-5 h-5 text-indigo-600" />
+              <h3 className="text-lg font-bold text-gray-900">
+                Vacancy Performance
+              </h3>
+            </div>
+
+            <div className="space-y-4">
+              {vacancyStats.map((vacancy) => (
+                <div
+                  key={vacancy.id}
+                  className="border border-gray-200 rounded-xl p-4"
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">
+                        {vacancy.title}
+                      </h4>
+                      <p className="text-sm text-gray-500">
+                        {vacancy.department} • {vacancy.location}
+                      </p>
+                    </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg">User Management</h3>
-            <Users className="w-5 h-5 text-gray-600" />
-          </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">Applications</p>
+                        <p className="font-bold text-gray-900">
+                          {vacancy.applicationsCount}
+                        </p>
+                      </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm text-gray-600">Name</th>
-                  <th className="px-6 py-3 text-left text-sm text-gray-600">Email</th>
-                  <th className="px-6 py-3 text-left text-sm text-gray-600">Role</th>
-                  <th className="px-6 py-3 text-left text-sm text-gray-600">Applications</th>
-                  <th className="px-6 py-3 text-left text-sm text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {mockUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">{user.name}</td>
-                    <td className="px-6 py-4 text-gray-600">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm ${
-                        user.role === "Manager"
-                          ? "bg-purple-100 text-purple-700"
-                          : "bg-blue-100 text-blue-700"
-                      }`}>
-                        {user.role}
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">Avg. Score</p>
+                        <p
+                          className={`font-bold ${getScoreColor(
+                            vacancy.averageScore
+                          )}`}
+                        >
+                          {vacancy.averageScore}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-indigo-600 h-full rounded-full"
+                      style={{ width: `${vacancy.averageScore}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <h3 className="text-lg font-bold text-gray-900">
+                Recent Applications
+              </h3>
+            </div>
+
+            <div className="space-y-4">
+              {candidateApplications.map((application) => (
+                <div
+                  key={application.id}
+                  className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/analysis/${application.id}`)}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">
+                        {application.candidateName}
+                      </h4>
+
+                      <p className="text-sm text-gray-500 mt-1">
+                        Applied for {application.vacancyTitle}
+                      </p>
+
+                      <p className="text-sm text-gray-500 mt-1">
+                        CV: {application.cvFileName}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p
+                        className={`text-xl font-bold ${getScoreColor(
+                          application.aiScore
+                        )}`}
+                      >
+                        {application.aiScore}%
+                      </p>
+
+                      <span
+                        className={`inline-flex mt-2 px-3 py-1 rounded-full text-xs capitalize ${getStatusColor(
+                          application.status
+                        )}`}
+                      >
+                        {application.status}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">{user.applications}</td>
-                    <td className="px-6 py-4">
-                      <button className="text-blue-600 hover:text-blue-700 text-sm">
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Activity className="w-5 h-5 text-indigo-600" />
+              <h3 className="text-lg font-bold text-gray-900">
+                Recent Activity
+              </h3>
+            </div>
+
+            <div className="space-y-4">
+              {recentActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-4 border border-gray-200 rounded-xl p-4"
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${getStatusColor(
+                      activity.type
+                    )}`}
+                  >
+                    {getStatusIcon(activity.type)}
+                  </div>
+
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {activity.text}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {activity.time}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 bg-indigo-50 border border-indigo-200 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-5 h-5 text-indigo-600" />
+                <p className="font-bold text-indigo-900">AI Component Status</p>
+              </div>
+
+              <p className="text-sm text-indigo-900 leading-relaxed">
+                The system currently uses mock AI analysis data for demonstration.
+                The next development step is to connect the backend to OpenAI API
+                and generate real CV-to-vacancy fit scores.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
