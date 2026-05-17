@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -6,11 +7,32 @@ import {
   Clock,
   Code2,
   CheckCircle,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import { vacancies } from "../data/mockRecruitmentData";
+import { ApiVacancy, getVacancies } from "../services/api";
 
 export default function VacanciesPage() {
   const navigate = useNavigate();
+
+  const [vacancies, setVacancies] = useState<ApiVacancy[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const fetchVacancies = async () => {
+      try {
+        const data = await getVacancies();
+        setVacancies(data);
+      } catch (error) {
+        setErrorMessage("Could not load vacancies from backend API.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVacancies();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -20,7 +42,9 @@ export default function VacanciesPage() {
             <h1 className="text-2xl font-bold text-gray-900">
               AI Recruitment Review System
             </h1>
-            <p className="text-sm text-gray-500">Available vacancies</p>
+            <p className="text-sm text-gray-500">
+              Available vacancies from backend API
+            </p>
           </div>
 
           <button
@@ -44,73 +68,100 @@ export default function VacanciesPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vacancies.map((vacancy) => (
-            <div
-              key={vacancy.id}
-              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-5">
-                <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                  <Briefcase className="w-6 h-6 text-blue-600" />
+        {isLoading && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 flex items-center justify-center gap-3 text-gray-600">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            Loading vacancies...
+          </div>
+        )}
+
+        {!isLoading && errorMessage && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 flex items-center gap-3 text-red-700">
+            <AlertCircle className="w-6 h-6" />
+            {errorMessage}
+          </div>
+        )}
+
+        {!isLoading && !errorMessage && vacancies.length === 0 && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              No vacancies found
+            </h3>
+            <p className="text-gray-600">
+              Please seed demo vacancies from the backend first.
+            </p>
+          </div>
+        )}
+
+        {!isLoading && !errorMessage && vacancies.length > 0 && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vacancies.map((vacancy) => (
+              <div
+                key={vacancy._id}
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <Briefcase className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <span className="text-xs font-medium bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                    {vacancy.level}
+                  </span>
                 </div>
-                <span className="text-xs font-medium bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
-                  {vacancy.level}
-                </span>
-              </div>
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                {vacancy.title}
-              </h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {vacancy.title}
+                </h3>
 
-              <p className="text-gray-600 text-sm mb-5">
-                {vacancy.description}
-              </p>
-
-              <div className="space-y-2 text-sm text-gray-600 mb-5">
-                <div className="flex items-center gap-2">
-                  <Code2 className="w-4 h-4 text-gray-400" />
-                  {vacancy.department}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gray-400" />
-                  {vacancy.location}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  {vacancy.type}
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-sm font-semibold text-gray-800 mb-3">
-                  Required skills
+                <p className="text-gray-600 text-sm mb-5">
+                  {vacancy.description}
                 </p>
 
-                <div className="flex flex-wrap gap-2">
-                  {vacancy.requiredSkills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                <div className="space-y-2 text-sm text-gray-600 mb-5">
+                  <div className="flex items-center gap-2">
+                    <Code2 className="w-4 h-4 text-gray-400" />
+                    {vacancy.department}
+                  </div>
 
-              <button
-                onClick={() => navigate(`/user/submit/${vacancy.id}`)}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <CheckCircle className="w-5 h-5" />
-                Apply Now
-              </button>
-            </div>
-          ))}
-        </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    {vacancy.location}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    {vacancy.type}
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <p className="text-sm font-semibold text-gray-800 mb-3">
+                    Required skills
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {vacancy.requiredSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate(`/user/submit/${vacancy._id}`)}
+                  className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  Apply Now
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
