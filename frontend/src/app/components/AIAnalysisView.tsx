@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -14,35 +14,99 @@ import {
   Target,
   Brain,
   BarChart3,
+  Loader2,
 } from "lucide-react";
 import {
-  candidateApplications,
-  vacancies,
-} from "../data/mockRecruitmentData";
+  ApiApplication,
+  ApiApplicationStatus,
+  getApplicationById,
+  updateApplicationStatus,
+} from "../services/api";
 
 export default function AIAnalysisView() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const application = useMemo(() => {
-    return candidateApplications.find((item) => item.id === Number(id));
+  const [application, setApplication] = useState<ApiApplication | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const [decisionModal, setDecisionModal] = useState<{
+    isOpen: boolean;
+    status: "approved" | "rejected" | "";
+  }>({
+    isOpen: false,
+    status: "",
+  });
+
+  useEffect(() => {
+    const fetchApplication = async () => {
+      try {
+        if (!id) {
+          setErrorMessage("Application ID is missing.");
+          return;
+        }
+
+        const data = await getApplicationById(id);
+        setApplication(data);
+      } catch (error) {
+        setErrorMessage("Could not load application analysis from backend API.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApplication();
   }, [id]);
 
-  const vacancy = useMemo(() => {
-    if (!application) return null;
+ const handleDecision = async (newStatus: "approved" | "rejected") => {
+    if (!application) return;
 
-    return vacancies.find((item) => item.id === application.vacancyId);
-  }, [application]);
+    try {
+      setUpdatingStatus(true);
 
-  if (!application || !vacancy) {
+      const updatedApplication = await updateApplicationStatus(
+        application._id,
+        newStatus
+      );
+
+      setApplication(updatedApplication);
+
+      setDecisionModal({
+        isOpen: true,
+        status: newStatus,
+      });
+    } catch (error) {
+      setErrorMessage("Could not update application status.");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 flex items-center gap-3 text-gray-600">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          Loading AI analysis...
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMessage || !application) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-md text-center">
+          <AlertTriangle className="w-10 h-10 text-red-600 mx-auto mb-4" />
+
           <h1 className="text-2xl font-bold text-gray-900 mb-3">
             Application not found
           </h1>
+
           <p className="text-gray-600 mb-6">
-            The selected application does not exist or was removed.
+            {errorMessage || "The selected application does not exist."}
           </p>
 
           <button
@@ -56,39 +120,46 @@ export default function AIAnalysisView() {
     );
   }
 
+  const vacancy = application.vacancy;
+  const aiScore = application.aiScore ?? 0;
+
   const scoreLevel =
-    application.aiScore >= 80
+    aiScore >= 80
       ? "Strong Match"
-      : application.aiScore >= 60
+      : aiScore >= 60
       ? "Moderate Match"
       : "Weak Match";
 
   const scoreColor =
-    application.aiScore >= 80
+    aiScore >= 80
       ? "text-green-600"
-      : application.aiScore >= 60
+      : aiScore >= 60
       ? "text-yellow-600"
       : "text-red-600";
 
   const scoreBoxColor =
-    application.aiScore >= 80
+    aiScore >= 80
       ? "bg-green-50 border-green-200"
-      : application.aiScore >= 60
+      : aiScore >= 60
       ? "bg-yellow-50 border-yellow-200"
       : "bg-red-50 border-red-200";
 
   const recommendationIcon =
-    application.aiScore >= 80 ? (
+    aiScore >= 80 ? (
       <CheckCircle className="w-6 h-6 text-green-600" />
-    ) : application.aiScore >= 60 ? (
+    ) : aiScore >= 60 ? (
       <AlertTriangle className="w-6 h-6 text-yellow-600" />
     ) : (
       <XCircle className="w-6 h-6 text-red-600" />
     );
 
-  const skillCoverage = Math.round(
-    (application.matchedSkills.length / vacancy.requiredSkills.length) * 100
-  );
+  const skillCoverage =
+    vacancy.requiredSkills.length > 0
+      ? Math.round(
+          (application.matchedSkills.length / vacancy.requiredSkills.length) *
+            100
+        )
+      : 0;
 
   const breakdownItems = [
     {
@@ -98,18 +169,61 @@ export default function AIAnalysisView() {
     },
     {
       label: "Role Alignment",
-      value: application.aiScore >= 80 ? 88 : application.aiScore >= 60 ? 68 : 34,
+      value: aiScore >= 80 ? 88 : aiScore >= 60 ? 68 : 34,
       description: "General fit between CV and vacancy responsibilities",
     },
     {
       label: "Experience Relevance",
-      value: application.aiScore >= 80 ? 84 : application.aiScore >= 60 ? 64 : 30,
+      value: aiScore >= 80 ? 84 : aiScore >= 60 ? 64 : 30,
       description: "Practical experience related to this vacancy",
     },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {decisionModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 max-w-md w-full text-center">
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${
+                decisionModal.status === "approved"
+                  ? "bg-green-50"
+                  : "bg-red-50"
+              }`}
+            >
+              {decisionModal.status === "approved" ? (
+                <CheckCircle className="w-9 h-9 text-green-600" />
+              ) : (
+                <XCircle className="w-9 h-9 text-red-600" />
+              )}
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Candidate{" "}
+              {decisionModal.status === "approved" ? "Approved" : "Rejected"}
+            </h2>
+
+            <p className="text-gray-600 mb-6">
+              {application.candidateName}'s application has been{" "}
+              <span className="font-semibold">{decisionModal.status}</span>{" "}
+              successfully.
+            </p>
+
+            <button
+              onClick={() =>
+                setDecisionModal({
+                  isOpen: false,
+                  status: "",
+                })
+              }
+              className="w-full bg-gray-900 text-white py-3 rounded-xl hover:bg-gray-800 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
@@ -157,7 +271,7 @@ export default function AIAnalysisView() {
 
                   <span className="flex items-center gap-2">
                     <Briefcase className="w-4 h-4" />
-                    {application.vacancyTitle}
+                    {vacancy.title}
                   </span>
                 </div>
 
@@ -181,9 +295,7 @@ export default function AIAnalysisView() {
               <Sparkles className="w-6 h-6 text-indigo-600" />
             </div>
 
-            <p className={`text-5xl font-bold ${scoreColor}`}>
-              {application.aiScore}%
-            </p>
+            <p className={`text-5xl font-bold ${scoreColor}`}>{aiScore}%</p>
 
             <p className="text-lg font-semibold text-gray-900 mt-2">
               {scoreLevel}
@@ -209,7 +321,9 @@ export default function AIAnalysisView() {
               {vacancy.title}
             </h4>
 
-            <p className="text-sm text-gray-600 mb-5">{vacancy.description}</p>
+            <p className="text-sm text-gray-600 mb-5">
+              {vacancy.description}
+            </p>
 
             <p className="text-sm font-semibold text-gray-800 mb-3">
               Required Skills
@@ -242,14 +356,20 @@ export default function AIAnalysisView() {
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  {application.matchedSkills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="text-xs bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {application.matchedSkills.length > 0 ? (
+                    application.matchedSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="text-xs bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No matched skills detected.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -259,14 +379,20 @@ export default function AIAnalysisView() {
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  {application.missingSkills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="text-xs bg-red-50 text-red-700 border border-red-200 px-3 py-1 rounded-full"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {application.missingSkills.length > 0 ? (
+                    application.missingSkills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="text-xs bg-red-50 text-red-700 border border-red-200 px-3 py-1 rounded-full"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No missing skills detected.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -302,7 +428,7 @@ export default function AIAnalysisView() {
                 Summary
               </p>
               <p className="text-sm text-indigo-900 leading-relaxed">
-                {application.aiSummary}
+                {application.aiSummary || "Pending AI analysis."}
               </p>
             </div>
 
@@ -313,7 +439,7 @@ export default function AIAnalysisView() {
                   AI Recommendation
                 </p>
                 <p className="text-gray-700 mt-1">
-                  {application.aiRecommendation}
+                  {application.aiRecommendation || "Pending review"}
                 </p>
               </div>
             </div>
@@ -371,15 +497,50 @@ export default function AIAnalysisView() {
                 View CV
               </button>
 
-              <button className="bg-green-600 text-white px-5 py-3 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                <CheckCircle className="w-5 h-5" />
-                Approve Candidate
-              </button>
+              {application.status === "pending" ? (
+                <>
+                  <button
+                    disabled={updatingStatus}
+                    onClick={() => handleDecision("approved")}
+                    className="bg-green-600 text-white px-5 py-3 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {updatingStatus ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-5 h-5" />
+                    )}
+                    Approve Candidate
+                  </button>
 
-              <button className="bg-red-600 text-white px-5 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
-                <XCircle className="w-5 h-5" />
-                Reject Candidate
-              </button>
+                  <button
+                    disabled={updatingStatus}
+                    onClick={() => handleDecision("rejected")}
+                    className="bg-red-600 text-white px-5 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {updatingStatus ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <XCircle className="w-5 h-5" />
+                    )}
+                    Reject Candidate
+                  </button>
+                </>
+              ) : (
+                <div
+                  className={`px-5 py-3 rounded-xl border flex items-center justify-center gap-2 capitalize ${
+                    application.status === "approved"
+                      ? "bg-green-50 text-green-700 border-green-200"
+                      : "bg-red-50 text-red-700 border-red-200"
+                  }`}
+                >
+                  {application.status === "approved" ? (
+                    <CheckCircle className="w-5 h-5" />
+                  ) : (
+                    <XCircle className="w-5 h-5" />
+                  )}
+                  Final Decision: {application.status}
+                </div>
+              )}
             </div>
           </div>
         </section>

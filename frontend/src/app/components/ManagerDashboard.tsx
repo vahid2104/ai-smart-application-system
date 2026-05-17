@@ -30,6 +30,16 @@ export default function ManagerDashboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [updatingId, setUpdatingId] = useState("");
 
+  const [decisionModal, setDecisionModal] = useState<{
+    isOpen: boolean;
+    status: "approved" | "rejected" | "";
+    candidateName: string;
+  }>({
+    isOpen: false,
+    status: "",
+    candidateName: "",
+  });
+
   useEffect(() => {
     const fetchApplications = async () => {
       try {
@@ -45,10 +55,10 @@ export default function ManagerDashboard() {
     fetchApplications();
   }, []);
 
-  const handleStatusChange = async (
-    applicationId: string,
-    newStatus: ApiApplicationStatus
-  ) => {
+const handleStatusChange = async (
+  applicationId: string,
+  newStatus: "approved" | "rejected"
+) => {
     try {
       setUpdatingId(applicationId);
 
@@ -62,6 +72,12 @@ export default function ManagerDashboard() {
           application._id === applicationId ? updatedApplication : application
         )
       );
+
+      setDecisionModal({
+        isOpen: true,
+        status: newStatus,
+        candidateName: updatedApplication.candidateName,
+      });
     } catch (error) {
       setErrorMessage("Could not update application status.");
     } finally {
@@ -106,6 +122,50 @@ export default function ManagerDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {decisionModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 max-w-md w-full text-center">
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${
+                decisionModal.status === "approved"
+                  ? "bg-green-50"
+                  : "bg-red-50"
+              }`}
+            >
+              {decisionModal.status === "approved" ? (
+                <CheckCircle className="w-9 h-9 text-green-600" />
+              ) : (
+                <XCircle className="w-9 h-9 text-red-600" />
+              )}
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Application{" "}
+              {decisionModal.status === "approved" ? "Approved" : "Rejected"}
+            </h2>
+
+            <p className="text-gray-600 mb-6">
+              {decisionModal.candidateName}'s application has been{" "}
+              <span className="font-semibold">{decisionModal.status}</span>{" "}
+              successfully.
+            </p>
+
+            <button
+              onClick={() =>
+                setDecisionModal({
+                  isOpen: false,
+                  status: "",
+                  candidateName: "",
+                })
+              }
+              className="w-full bg-gray-900 text-white py-3 rounded-xl hover:bg-gray-800 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
@@ -163,7 +223,8 @@ export default function ManagerDashboard() {
             Candidate Applications
           </h2>
           <p className="text-gray-600 mt-1">
-            Each application is reviewed against the selected vacancy requirements.
+            Each application is reviewed against the selected vacancy
+            requirements.
           </p>
         </section>
 
@@ -348,35 +409,48 @@ export default function ManagerDashboard() {
                       View CV
                     </button>
 
-                    <button
-                      disabled={updatingId === application._id}
-                      onClick={() =>
-                        handleStatusChange(application._id, "approved")
-                      }
-                      className="flex-1 xl:flex-none bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {updatingId === application._id ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <CheckCircle className="w-5 h-5" />
-                      )}
-                      Approve
-                    </button>
+                    {application.status === "pending" ? (
+                      <>
+                        <button
+                          disabled={updatingId === application._id}
+                          onClick={() =>
+                            handleStatusChange(application._id, "approved")
+                          }
+                          className="flex-1 xl:flex-none bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {updatingId === application._id ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-5 h-5" />
+                          )}
+                          Approve
+                        </button>
 
-                    <button
-                      disabled={updatingId === application._id}
-                      onClick={() =>
-                        handleStatusChange(application._id, "rejected")
-                      }
-                      className="flex-1 xl:flex-none bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {updatingId === application._id ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <XCircle className="w-5 h-5" />
-                      )}
-                      Reject
-                    </button>
+                        <button
+                          disabled={updatingId === application._id}
+                          onClick={() =>
+                            handleStatusChange(application._id, "rejected")
+                          }
+                          className="flex-1 xl:flex-none bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {updatingId === application._id ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <XCircle className="w-5 h-5" />
+                          )}
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <div
+                        className={`flex-1 xl:flex-none px-4 py-3 rounded-xl border flex items-center justify-center gap-2 capitalize ${getStatusColor(
+                          application.status
+                        )}`}
+                      >
+                        {getStatusIcon(application.status)}
+                        Decision: {application.status}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
