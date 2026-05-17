@@ -1,10 +1,12 @@
 import { createBrowserRouter } from "react-router";
+
 import LoginPage from "./components/LoginPage";
 import UserDashboard from "./components/UserDashboard";
 import ApplicationSubmission from "./components/ApplicationSubmission";
 import ManagerDashboard from "./components/ManagerDashboard";
 import AdminDashboard from "./components/AdminDashboard";
 import AIAnalysisView from "./components/AIAnalysisView";
+import VacanciesPage from "./components/VacanciesPage";
 
 export const router = createBrowserRouter([
   {
@@ -16,7 +18,11 @@ export const router = createBrowserRouter([
     Component: UserDashboard,
   },
   {
-    path: "/user/submit",
+    path: "/vacancies",
+    Component: VacanciesPage,
+  },
+  {
+    path: "/user/submit/:vacancyId",
     Component: ApplicationSubmission,
   },
   {
