@@ -10,6 +10,23 @@ The system allows candidates to apply for predefined vacancies by submitting the
 
 Managers can review applications, approve or reject candidates, and view detailed AI analysis. Admins can monitor vacancies, applications, decision statistics, and average AI scores.
 
+## Screenshots
+
+### Login Page
+<img src="./screenshots/login-page.png" alt="Login Page" width="800" />
+
+### Vacancies Page
+<img src="./screenshots/vacancies-page.png" alt="Vacancies Page" width="800" />
+
+### Manager Dashboard
+<img src="./screenshots/manager-dashboard.png" alt="Manager Dashboard" width="800" />
+
+### AI Analysis Page
+<img src="./screenshots/ai-analysis-page.png" alt="AI Analysis Page" width="800" />
+
+### Admin Dashboard
+<img src="./screenshots/admin-dashboard.png" alt="Admin Dashboard" width="800" />
+
 ## Main Features
 
 - Role-based entry flow: Candidate, Manager, Admin
