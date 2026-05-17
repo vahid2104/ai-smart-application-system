@@ -1,20 +1,7 @@
-import express, { Request, Response } from "express";
-import cors from "cors";
 import dotenv from "dotenv";
+import app from "./app";
 
 dotenv.config();
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.get("/api/health", (_req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: "Backend server is running",
-  });
-});
 
 const PORT = process.env.PORT || 5000;
 
