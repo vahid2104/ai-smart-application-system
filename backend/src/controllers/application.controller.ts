@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Application from "../models/application.model";
 import Vacancy from "../models/vacancy.model";
 import { generateFakeAiAnalysis } from "../services/aiAnalysis.service";
+import { generateOpenAiAnalysis } from "../services/openaiAnalysis.service";
 
 export const createApplication = async (
   req: Request,
@@ -42,7 +43,11 @@ export const createApplication = async (
       return;
     }
 
-    const aiAnalysis = generateFakeAiAnalysis(existingVacancy, coverLetter);
+   const useRealAi = process.env.USE_REAL_AI === "true";
+
+const aiAnalysis = useRealAi
+  ? await generateOpenAiAnalysis(existingVacancy, coverLetter)
+  : generateFakeAiAnalysis(existingVacancy, coverLetter);
 
     const application = await Application.create({
       vacancy,
