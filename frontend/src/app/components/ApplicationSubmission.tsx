@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -10,16 +10,24 @@ import {
   Sparkles,
   FileText,
   CheckCircle,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import { vacancies } from "../data/mockRecruitmentData";
+import {
+  ApiVacancy,
+  createApplication,
+  getVacancyById,
+} from "../services/api";
 
 export default function ApplicationSubmission() {
   const navigate = useNavigate();
   const { vacancyId } = useParams();
 
-  const selectedVacancy = useMemo(() => {
-    return vacancies.find((vacancy) => vacancy.id === vacancyId);
-  }, [vacancyId]);
+  const [selectedVacancy, setSelectedVacancy] = useState<ApiVacancy | null>(
+    null
+  );
+  const [isLoadingVacancy, setIsLoadingVacancy] = useState(true);
+  const [vacancyError, setVacancyError] = useState("");
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -28,37 +36,29 @@ export default function ApplicationSubmission() {
   });
 
   const [cvFileName, setCvFileName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const simulatedAiResult = {
-    score: 82,
-    matchedSkills: ["React", "TypeScript", "Git"],
-    missingSkills: ["MongoDB", "Testing"],
-    recommendation: "Review manually",
-    summary:
-      "The candidate shows relevant frontend skills and partial alignment with the selected vacancy. Backend/database experience should be reviewed manually.",
-  };
+  useEffect(() => {
+    const fetchSelectedVacancy = async () => {
+      try {
+        if (!vacancyId) {
+          setVacancyError("Vacancy ID is missing.");
+          return;
+        }
 
-  if (!selectedVacancy) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-md text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
-            Vacancy not found
-          </h1>
-          <p className="text-gray-600 mb-6">
-            The selected vacancy does not exist or was removed.
-          </p>
-          <button
-            onClick={() => navigate("/vacancies")}
-            className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors"
-          >
-            Back to Vacancies
-          </button>
-        </div>
-      </div>
-    );
-  }
+        const data = await getVacancyById(vacancyId);
+        setSelectedVacancy(data);
+      } catch (error) {
+        setVacancyError("Could not load selected vacancy from backend API.");
+      } finally {
+        setIsLoadingVacancy(false);
+      }
+    };
+
+    fetchSelectedVacancy();
+  }, [vacancyId]);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -79,14 +79,77 @@ export default function ApplicationSubmission() {
     setCvFileName(file.name);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setIsSubmitted(true);
+    if (!selectedVacancy) return;
 
-    setTimeout(() => {
-      navigate("/user");
-    }, 1800);
+    try {
+      setIsSubmitting(true);
+      setSubmitError("");
+
+      await createApplication({
+        vacancy: selectedVacancy._id,
+        candidateName: formData.fullName,
+        candidateEmail: formData.email,
+        coverLetter: formData.coverLetter,
+        cvFileName,
+        cvFileUrl: `local-demo://${cvFileName}`,
+      });
+
+      setIsSubmitted(true);
+
+      setTimeout(() => {
+        navigate("/user");
+      }, 1800);
+    } catch (error) {
+      setSubmitError("Could not submit application to backend API.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoadingVacancy) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 flex items-center gap-3 text-gray-600">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          Loading selected vacancy...
+        </div>
+      </div>
+    );
+  }
+
+  if (vacancyError || !selectedVacancy) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-md text-center">
+          <AlertCircle className="w-10 h-10 text-red-600 mx-auto mb-4" />
+
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+            Vacancy not found
+          </h1>
+
+          <p className="text-gray-600 mb-6">
+            {vacancyError || "The selected vacancy does not exist."}
+          </p>
+
+          <button
+            onClick={() => navigate("/vacancies")}
+            className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            Back to Vacancies
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const simulatedAiResult = {
+    score: "Generated after submit",
+    recommendation: "Backend fake AI service",
+    summary:
+      "After submission, backend compares cover letter keywords with vacancy required skills and stores AI score, matched skills, missing skills, summary, and recommendation.",
   };
 
   return (
@@ -119,9 +182,16 @@ export default function ApplicationSubmission() {
             <div>
               <p className="font-semibold">Application submitted successfully</p>
               <p className="text-sm">
-                AI review simulation completed. Redirecting to your dashboard...
+                Backend AI analysis was generated. Redirecting to your dashboard...
               </p>
             </div>
+          </div>
+        )}
+
+        {submitError && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-2xl p-5 flex items-center gap-3">
+            <AlertCircle className="w-6 h-6" />
+            <p>{submitError}</p>
           </div>
         )}
 
@@ -132,8 +202,8 @@ export default function ApplicationSubmission() {
                 Candidate Application Form
               </h2>
               <p className="text-gray-600 mb-8">
-                Fill in the candidate information and upload a CV. In the final
-                system, the CV will be analyzed against the vacancy requirements.
+                Fill in candidate information and upload a CV. The backend will
+                create an application and generate fake AI analysis for demo.
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -191,7 +261,7 @@ export default function ApplicationSubmission() {
                     name="coverLetter"
                     value={formData.coverLetter}
                     onChange={handleChange}
-                    placeholder="Explain why this candidate is suitable for the selected vacancy..."
+                    placeholder="Example: I have experience with React, TypeScript, Node.js, MongoDB, REST API and Git..."
                     rows={6}
                     required
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -229,7 +299,7 @@ export default function ApplicationSubmission() {
                           {cvFileName}
                         </p>
                         <p className="text-sm text-gray-500">
-                          CV ready for AI analysis
+                          CV filename will be saved in backend
                         </p>
                       </div>
                     </div>
@@ -238,10 +308,20 @@ export default function ApplicationSubmission() {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white py-4 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-semibold"
+                  disabled={isSubmitting}
+                  className="w-full bg-blue-600 text-white py-4 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-5 h-5" />
-                  Submit Application
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      Submit Application
+                    </>
+                  )}
                 </button>
               </form>
             </div>
@@ -298,63 +378,25 @@ export default function ApplicationSubmission() {
               </div>
 
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4">
-                <p className="text-sm text-indigo-700">Simulated Fit Score</p>
-                <p className="text-3xl font-bold text-indigo-700">
-                  {simulatedAiResult.score}%
+                <p className="text-sm text-indigo-700">AI Score</p>
+                <p className="text-2xl font-bold text-indigo-700">
+                  {simulatedAiResult.score}
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-2">
-                    Matched Skills
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {simulatedAiResult.matchedSkills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              <p className="text-sm font-semibold text-gray-800 mb-1">
+                Recommendation
+              </p>
+              <p className="text-sm text-gray-600 mb-4">
+                {simulatedAiResult.recommendation}
+              </p>
 
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-2">
-                    Missing Skills
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {simulatedAiResult.missingSkills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="text-xs bg-red-50 text-red-700 px-3 py-1 rounded-full"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-1">
-                    Recommendation
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {simulatedAiResult.recommendation}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 mb-1">
-                    Summary
-                  </p>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {simulatedAiResult.summary}
-                  </p>
-                </div>
-              </div>
+              <p className="text-sm font-semibold text-gray-800 mb-1">
+                Summary
+              </p>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {simulatedAiResult.summary}
+              </p>
             </div>
           </aside>
         </div>
