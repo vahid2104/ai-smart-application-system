@@ -77,6 +77,32 @@ export const getVacancyById = async (
   return result.data;
 };
 
+export const getApplications = async (): Promise<ApiApplication[]> => {
+  const response = await fetch(`${API_BASE_URL}/applications`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch applications");
+  }
+
+  const result: ApiResponse<ApiApplication[]> = await response.json();
+
+  return result.data;
+};
+
+export const getApplicationById = async (
+  applicationId: string
+): Promise<ApiApplication> => {
+  const response = await fetch(`${API_BASE_URL}/applications/${applicationId}`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch application");
+  }
+
+  const result: ApiResponse<ApiApplication> = await response.json();
+
+  return result.data;
+};
+
 export const createApplication = async (
   payload: CreateApplicationPayload
 ): Promise<ApiApplication> => {
