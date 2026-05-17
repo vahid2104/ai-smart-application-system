@@ -47,6 +47,7 @@ Managers can review applications, approve or reject candidates, and view detaile
 
 ## Project Structure
 
+```text
 ai-smart-application-system/
 ├── frontend/
 │   ├── src/
@@ -67,6 +68,7 @@ ai-smart-application-system/
 │
 ├── .gitignore
 └── README.md
+```
 
 ## Backend API Endpoints
 
