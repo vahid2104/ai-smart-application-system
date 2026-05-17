@@ -43,11 +43,24 @@ export const createApplication = async (
       return;
     }
 
-   const useRealAi = process.env.USE_REAL_AI === "true";
+ const useRealAi = process.env.USE_REAL_AI === "true";
 
-const aiAnalysis = useRealAi
-  ? await generateOpenAiAnalysis(existingVacancy, coverLetter)
-  : generateFakeAiAnalysis(existingVacancy, coverLetter);
+let aiAnalysis;
+
+if (useRealAi) {
+  try {
+    aiAnalysis = await generateOpenAiAnalysis(existingVacancy, coverLetter);
+  } catch (aiError) {
+    console.warn(
+      "OpenAI analysis failed. Falling back to fake AI analysis:",
+      aiError
+    );
+
+    aiAnalysis = generateFakeAiAnalysis(existingVacancy, coverLetter);
+  }
+} else {
+  aiAnalysis = generateFakeAiAnalysis(existingVacancy, coverLetter);
+}
 
     const application = await Application.create({
       vacancy,
