@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import Application from "../models/application.model";
 import Vacancy from "../models/vacancy.model";
+import { generateFakeAiAnalysis } from "../services/aiAnalysis.service";
 
 export const createApplication = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const {
@@ -41,6 +42,8 @@ export const createApplication = async (
       return;
     }
 
+    const aiAnalysis = generateFakeAiAnalysis(existingVacancy, coverLetter);
+
     const application = await Application.create({
       vacancy,
       candidateName,
@@ -49,11 +52,11 @@ export const createApplication = async (
       cvFileName,
       cvFileUrl,
       status: "pending",
-      aiScore: 0,
-      matchedSkills: [],
-      missingSkills: [],
-      aiSummary: "AI analysis has not been generated yet.",
-      aiRecommendation: "Pending AI review",
+      aiScore: aiAnalysis.aiScore,
+      matchedSkills: aiAnalysis.matchedSkills,
+      missingSkills: aiAnalysis.missingSkills,
+      aiSummary: aiAnalysis.aiSummary,
+      aiRecommendation: aiAnalysis.aiRecommendation,
     });
 
     const populatedApplication = await application.populate("vacancy");
@@ -74,7 +77,7 @@ export const createApplication = async (
 
 export const getApplications = async (
   _req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const applications = await Application.find()
@@ -97,11 +100,11 @@ export const getApplications = async (
 
 export const getApplicationById = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const application = await Application.findById(req.params.id).populate(
-      "vacancy"
+      "vacancy",
     );
 
     if (!application) {
@@ -127,7 +130,7 @@ export const getApplicationById = async (
 
 export const updateApplicationStatus = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { status } = req.body;
@@ -143,7 +146,7 @@ export const updateApplicationStatus = async (
     const application = await Application.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { new: true },
     ).populate("vacancy");
 
     if (!application) {
