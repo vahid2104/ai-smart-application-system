@@ -59,7 +59,6 @@ export const getVacancies = async (): Promise<ApiVacancy[]> => {
   }
 
   const result: ApiResponse<ApiVacancy[]> = await response.json();
-
   return result.data;
 };
 
@@ -73,7 +72,6 @@ export const getVacancyById = async (
   }
 
   const result: ApiResponse<ApiVacancy> = await response.json();
-
   return result.data;
 };
 
@@ -85,7 +83,6 @@ export const getApplications = async (): Promise<ApiApplication[]> => {
   }
 
   const result: ApiResponse<ApiApplication[]> = await response.json();
-
   return result.data;
 };
 
@@ -99,7 +96,6 @@ export const getApplicationById = async (
   }
 
   const result: ApiResponse<ApiApplication> = await response.json();
-
   return result.data;
 };
 
@@ -119,6 +115,28 @@ export const createApplication = async (
   }
 
   const result: ApiResponse<ApiApplication> = await response.json();
+  return result.data;
+};
 
+export const updateApplicationStatus = async (
+  applicationId: string,
+  status: ApiApplicationStatus
+): Promise<ApiApplication> => {
+  const response = await fetch(
+    `${API_BASE_URL}/applications/${applicationId}/status`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to update application status");
+  }
+
+  const result: ApiResponse<ApiApplication> = await response.json();
   return result.data;
 };

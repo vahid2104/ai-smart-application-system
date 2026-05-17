@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   CheckCircle,
@@ -12,24 +12,61 @@ import {
   Briefcase,
   User,
   Mail,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import { candidateApplications } from "../data/mockRecruitmentData";
+import {
+  ApiApplication,
+  ApiApplicationStatus,
+  getApplications,
+  updateApplicationStatus,
+} from "../services/api";
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
-  const [applications, setApplications] = useState(candidateApplications);
 
-  const handleStatusChange = (
-    applicationId: number,
-    newStatus: "approved" | "rejected"
+  const [applications, setApplications] = useState<ApiApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [updatingId, setUpdatingId] = useState("");
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        const data = await getApplications();
+        setApplications(data);
+      } catch (error) {
+        setErrorMessage("Could not load applications from backend API.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApplications();
+  }, []);
+
+  const handleStatusChange = async (
+    applicationId: string,
+    newStatus: ApiApplicationStatus
   ) => {
-    setApplications((prev) =>
-      prev.map((application) =>
-        application.id === applicationId
-          ? { ...application, status: newStatus }
-          : application
-      )
-    );
+    try {
+      setUpdatingId(applicationId);
+
+      const updatedApplication = await updateApplicationStatus(
+        applicationId,
+        newStatus
+      );
+
+      setApplications((prev) =>
+        prev.map((application) =>
+          application._id === applicationId ? updatedApplication : application
+        )
+      );
+    } catch (error) {
+      setErrorMessage("Could not update application status.");
+    } finally {
+      setUpdatingId("");
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -50,15 +87,22 @@ export default function ManagerDashboard() {
     return <Clock className="w-4 h-4" />;
   };
 
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (score?: number) => {
+    if (score === undefined) return "text-gray-600";
     if (score >= 80) return "text-green-600";
     if (score >= 60) return "text-yellow-600";
     return "text-red-600";
   };
 
-  const pendingCount = applications.filter((app) => app.status === "pending").length;
-  const approvedCount = applications.filter((app) => app.status === "approved").length;
-  const rejectedCount = applications.filter((app) => app.status === "rejected").length;
+  const pendingCount = applications.filter(
+    (app) => app.status === "pending"
+  ).length;
+  const approvedCount = applications.filter(
+    (app) => app.status === "approved"
+  ).length;
+  const rejectedCount = applications.filter(
+    (app) => app.status === "rejected"
+  ).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,164 +167,222 @@ export default function ManagerDashboard() {
           </p>
         </section>
 
-        <section className="grid gap-6">
-          {applications.map((application) => (
-            <div
-              key={application.id}
-              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
-            >
-              <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
-                <div className="flex-1">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-5">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center">
-                          <User className="w-5 h-5 text-blue-600" />
+        {isLoading && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 flex items-center justify-center gap-3 text-gray-600">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            Loading candidate applications...
+          </div>
+        )}
+
+        {!isLoading && errorMessage && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 flex items-center gap-3 text-red-700 mb-6">
+            <AlertCircle className="w-6 h-6" />
+            {errorMessage}
+          </div>
+        )}
+
+        {!isLoading && !errorMessage && applications.length === 0 && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              No applications found
+            </h3>
+            <p className="text-gray-600">
+              Applications submitted by candidates will appear here.
+            </p>
+          </div>
+        )}
+
+        {!isLoading && applications.length > 0 && (
+          <section className="grid gap-6">
+            {applications.map((application) => (
+              <div
+                key={application._id}
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6"
+              >
+                <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
+                  <div className="flex-1">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-5">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center">
+                            <User className="w-5 h-5 text-blue-600" />
+                          </div>
+
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900">
+                              {application.candidateName}
+                            </h3>
+                            <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                              <Mail className="w-4 h-4" />
+                              {application.candidateEmail}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`px-4 py-2 rounded-full border flex items-center gap-2 capitalize w-fit ${getStatusColor(
+                          application.status
+                        )}`}
+                      >
+                        {getStatusIcon(application.status)}
+                        {application.status}
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4 mb-5">
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                        <p className="text-xs text-gray-500 mb-1">
+                          Applied Vacancy
+                        </p>
+                        <p className="font-semibold text-gray-900 flex items-center gap-2">
+                          <Briefcase className="w-4 h-4 text-blue-600" />
+                          {application.vacancy.title}
+                        </p>
+                      </div>
+
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                        <p className="text-xs text-gray-500 mb-1">
+                          Attached CV
+                        </p>
+                        <p className="font-semibold text-gray-900 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-blue-600" />
+                          {application.cvFileName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 mb-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-5 h-5 text-indigo-600" />
+                        <h4 className="font-bold text-indigo-900">
+                          AI Candidate Fit Analysis
+                        </h4>
+                      </div>
+
+                      <div className="grid lg:grid-cols-4 gap-5">
+                        <div>
+                          <p className="text-xs text-indigo-700">Fit Score</p>
+                          <p
+                            className={`text-4xl font-bold ${getScoreColor(
+                              application.aiScore
+                            )}`}
+                          >
+                            {application.aiScore ?? 0}%
+                          </p>
                         </div>
 
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-900">
-                            {application.candidateName}
-                          </h3>
-                          <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                            <Mail className="w-4 h-4" />
-                            {application.candidateEmail}
+                        <div className="lg:col-span-3">
+                          <p className="text-xs text-indigo-700 mb-1">
+                            Summary
+                          </p>
+                          <p className="text-sm text-indigo-900 leading-relaxed">
+                            {application.aiSummary || "Pending AI analysis."}
+                          </p>
+                          <p className="text-sm font-semibold text-indigo-900 mt-3">
+                            Recommendation:{" "}
+                            {application.aiRecommendation || "Pending review"}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div
-                      className={`px-4 py-2 rounded-full border flex items-center gap-2 capitalize w-fit ${getStatusColor(
-                        application.status
-                      )}`}
-                    >
-                      {getStatusIcon(application.status)}
-                      {application.status}
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-4 mb-5">
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                      <p className="text-xs text-gray-500 mb-1">Applied Vacancy</p>
-                      <p className="font-semibold text-gray-900 flex items-center gap-2">
-                        <Briefcase className="w-4 h-4 text-blue-600" />
-                        {application.vacancyTitle}
-                      </p>
-                    </div>
-
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                      <p className="text-xs text-gray-500 mb-1">Attached CV</p>
-                      <p className="font-semibold text-gray-900 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-blue-600" />
-                        {application.cvFileName}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 mb-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sparkles className="w-5 h-5 text-indigo-600" />
-                      <h4 className="font-bold text-indigo-900">
-                        AI Candidate Fit Analysis
-                      </h4>
-                    </div>
-
-                    <div className="grid lg:grid-cols-4 gap-5">
+                    <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <p className="text-xs text-indigo-700">Fit Score</p>
-                        <p
-                          className={`text-4xl font-bold ${getScoreColor(
-                            application.aiScore
-                          )}`}
-                        >
-                          {application.aiScore}%
+                        <p className="text-sm font-semibold text-gray-800 mb-2">
+                          Matched Skills
                         </p>
+                        <div className="flex flex-wrap gap-2">
+                          {application.matchedSkills.length > 0 ? (
+                            application.matchedSkills.map((skill) => (
+                              <span
+                                key={skill}
+                                className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200"
+                              >
+                                {skill}
+                              </span>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">
+                              No matched skills detected.
+                            </p>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="lg:col-span-3">
-                        <p className="text-xs text-indigo-700 mb-1">Summary</p>
-                        <p className="text-sm text-indigo-900 leading-relaxed">
-                          {application.aiSummary}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 mb-2">
+                          Missing Skills
                         </p>
-                        <p className="text-sm font-semibold text-indigo-900 mt-3">
-                          Recommendation: {application.aiRecommendation}
-                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {application.missingSkills.length > 0 ? (
+                            application.missingSkills.map((skill) => (
+                              <span
+                                key={skill}
+                                className="text-xs bg-red-50 text-red-700 px-3 py-1 rounded-full border border-red-200"
+                              >
+                                {skill}
+                              </span>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">
+                              No missing skills detected.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800 mb-2">
-                        Matched Skills
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {application.matchedSkills.map((skill) => (
-                          <span
-                            key={skill}
-                            className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="xl:w-56 flex xl:flex-col gap-3">
+                    <button
+                      onClick={() => navigate(`/analysis/${application._id}`)}
+                      className="flex-1 xl:flex-none bg-gray-900 text-white px-4 py-3 rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-5 h-5" />
+                      View Details
+                    </button>
 
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800 mb-2">
-                        Missing Skills
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {application.missingSkills.map((skill) => (
-                          <span
-                            key={skill}
-                            className="text-xs bg-red-50 text-red-700 px-3 py-1 rounded-full border border-red-200"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    <button className="flex-1 xl:flex-none bg-white border border-gray-300 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                      <Download className="w-5 h-5" />
+                      View CV
+                    </button>
+
+                    <button
+                      disabled={updatingId === application._id}
+                      onClick={() =>
+                        handleStatusChange(application._id, "approved")
+                      }
+                      className="flex-1 xl:flex-none bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {updatingId === application._id ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-5 h-5" />
+                      )}
+                      Approve
+                    </button>
+
+                    <button
+                      disabled={updatingId === application._id}
+                      onClick={() =>
+                        handleStatusChange(application._id, "rejected")
+                      }
+                      className="flex-1 xl:flex-none bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {updatingId === application._id ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <XCircle className="w-5 h-5" />
+                      )}
+                      Reject
+                    </button>
                   </div>
-                </div>
-
-                <div className="xl:w-56 flex xl:flex-col gap-3">
-                  <button
-                    onClick={() => navigate(`/analysis/${application.id}`)}
-                    className="flex-1 xl:flex-none bg-gray-900 text-white px-4 py-3 rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Eye className="w-5 h-5" />
-                    View Details
-                  </button>
-
-                  <button
-                    className="flex-1 xl:flex-none bg-white border border-gray-300 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-5 h-5" />
-                    View CV
-                  </button>
-
-                  <button
-                    onClick={() => handleStatusChange(application.id, "approved")}
-                    className="flex-1 xl:flex-none bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    Approve
-                  </button>
-
-                  <button
-                    onClick={() => handleStatusChange(application.id, "rejected")}
-                    className="flex-1 xl:flex-none bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    Reject
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </section>
+            ))}
+          </section>
+        )}
       </main>
     </div>
   );
