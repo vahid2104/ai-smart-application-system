@@ -2,6 +2,10 @@
 
 AI-powered role-based recruitment application review system with vacancy-based CV submission, candidate evaluation, AI fit scoring, and manager approval workflow.
 
+## Live Demo
+
+🔗 [View Deployed Project](https://ai-smart-application-system.vercel.app/)
+
 ## Project Overview
 
 This project is a multi-component IT system developed for the Development of Complex IT Systems course.
